@@ -6,12 +6,19 @@ import org.springframework.stereotype.Service;
 import software.amazon.awssdk.core.ResponseBytes;
 import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.s3.model.*;
+import software.amazon.awssdk.services.s3.presigner.S3Presigner;
+import software.amazon.awssdk.services.s3.presigner.model.GetObjectPresignRequest;
+import software.amazon.awssdk.services.s3.presigner.model.PresignedGetObjectRequest;
+import software.amazon.awssdk.services.s3.presigner.model.PresignedPutObjectRequest;
+import software.amazon.awssdk.services.s3.presigner.model.PutObjectPresignRequest;
 
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
+import java.net.URL;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.time.Duration;
 import java.util.List;
 
 /**
@@ -29,6 +36,11 @@ public class S3ServiceIpml implements IS3Service{
     // Autowires the S3Client bean for synchronous operations.
     @Autowired
     private S3Client s3Client;
+
+    @Autowired
+    private S3Presigner presigner;
+    @Autowired
+    private S3Presigner s3Presigner;
 
     // Autowires the S3AsyncClient bean for asynchronous operations
     //@Autowired
@@ -143,5 +155,55 @@ public class S3ServiceIpml implements IS3Service{
         } catch (IOException e) {
             throw new IOException("Could not download file: " + e.getCause());
         }
+    }
+
+    // Create presigned URL that gives access to a User or App so temporary objects can be uploaded with no credentials needed
+    @Override
+    public String generatePresignedUploadUrl(String bucketName, String key, Duration expiration) {
+        // Build a PutObjectRequest to specify the bucket and key (file path) for the upload.
+        PutObjectRequest putObjectRequest = PutObjectRequest.builder()
+                                                            .bucket(bucketName)
+                                                            .key(key)
+                                                            .build();
+
+        // Build a PutObjectPresignRequest to specify the expiration time for the presigned URL.
+        PutObjectPresignRequest presignRequest = PutObjectPresignRequest.builder()
+                                                                        .signatureDuration(expiration) // Set the duration the URL is valid.
+                                                                        .putObjectRequest(putObjectRequest) // Attach the upload request.
+                                                                        .build();
+
+        // Generate the presigned URL for uploading the object.
+        PresignedPutObjectRequest presignedPutObjectRequest = s3Presigner.presignPutObject(presignRequest);
+
+        // Extract the URL from the presigned request.
+        URL presignedUrl = presignedPutObjectRequest.url();
+
+        // Return the presigned URL as a string.
+        return presignedUrl.toString();
+    }
+
+    // Create presigned URL to give temporary access for files download
+    @Override
+    public String generatePresignedDownloadUrl(String bucketName, String key, Duration expiration) {
+        // Build a GetObjectRequest to specify the bucket and key (file path) for the download.
+        GetObjectRequest getObjectRequest = GetObjectRequest.builder()
+                                                            .bucket(bucketName)
+                                                            .key(key)
+                                                            .build();
+
+        // Build a GetObjectPresignRequest to specify the expiration time for the presigned URL.
+        GetObjectPresignRequest presignRequest = GetObjectPresignRequest.builder()
+                                                                        .signatureDuration(expiration) // Set the duration the URL is valid.
+                                                                        .getObjectRequest(getObjectRequest) // Attach the download request.
+                                                                        .build();
+
+        // Generate the presigned URL for downloading the object.
+        PresignedGetObjectRequest presignedGetObjectRequest = s3Presigner.presignGetObject(presignRequest);
+
+        // Extract the URL from the presigned request.
+        URL presignedUrl = presignedGetObjectRequest.url();
+
+        // Return the presigned URL as a string.
+        return presignedUrl.toString();
     }
 }

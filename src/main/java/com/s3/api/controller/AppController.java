@@ -11,6 +11,7 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.time.Duration;
 import java.util.List;
 import java.util.Objects;
 
@@ -111,5 +112,45 @@ public class AppController {
     public ResponseEntity<String> downloadFile(@RequestParam String bucketName, @RequestParam String key) throws IOException {
         s3Service.downloadFile(bucketName, key);
         return ResponseEntity.ok("File downloaded successfully");
+    }
+
+    /**
+     * Endpoint to generate a presigned URL for uploading a file to an S3 bucket.
+     *
+     * @param bucketName The name of the bucket where the file will be uploaded.
+     * @param key        The key (path) under which the file will be stored in the bucket.
+     * @param expiration The duration (in minutes) for which the presigned URL will be valid.
+     * @return A response containing the presigned URL for uploading the file.
+     */
+    @PostMapping("/upload/presigned")
+    public ResponseEntity<String> generatePresignedUploadUrl(
+            @RequestParam String bucketName,
+            @RequestParam String key,
+            @RequestParam Long expiration) {
+        // Convert the expiration time from minutes to a Duration object.
+        Duration durationToLive = Duration.ofMinutes(expiration);
+
+        // Generate and return the presigned URL.
+        return ResponseEntity.ok(s3Service.generatePresignedUploadUrl(bucketName, key, durationToLive));
+    }
+
+    /**
+     * Endpoint to generate a presigned URL for downloading a file from an S3 bucket.
+     *
+     * @param bucketName The name of the bucket from which the file will be downloaded.
+     * @param key        The key (path) of the file in the bucket.
+     * @param expiration The duration (in minutes) for which the presigned URL will be valid.
+     * @return A response containing the presigned URL for downloading the file.
+     */
+    @PostMapping("/download/presigned")
+    public ResponseEntity<String> generatePresignedDownloadUrl(
+            @RequestParam String bucketName,
+            @RequestParam String key,
+            @RequestParam Long expiration) {
+        // Convert the expiration time from minutes to a Duration object.
+        Duration durationToLive = Duration.ofMinutes(expiration);
+
+        // Generate and return the presigned URL.
+        return ResponseEntity.ok(s3Service.generatePresignedDownloadUrl(bucketName, key, durationToLive));
     }
 }

@@ -2,6 +2,7 @@ package com.s3.api.service;
 
 import java.io.IOException;
 import java.nio.file.Path;
+import java.time.Duration;
 import java.util.List;
 
 public interface IS3Service {
@@ -20,4 +21,9 @@ public interface IS3Service {
     // Download a file from a bucket
     void downloadFile(String bucketName, String key) throws IOException;
 
+    // Generate presigned URL to upload files
+    String generatePresignedUploadUrl(String bucketName, String key, Duration expiration);
+
+    // Generate presigned URL to download files
+    String generatePresignedDownloadUrl(String bucketName, String key, Duration expiration);
 }

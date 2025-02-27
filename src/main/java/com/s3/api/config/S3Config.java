@@ -9,6 +9,7 @@ import software.amazon.awssdk.auth.credentials.StaticCredentialsProvider;
 import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.services.s3.S3AsyncClient;
 import software.amazon.awssdk.services.s3.S3Client;
+import software.amazon.awssdk.services.s3.presigner.S3Presigner;
 
 import java.net.URI;
 
@@ -21,11 +22,11 @@ public class S3Config {
 
     // Injects the AWS access key from the application properties file.
     @Value("${aws.access.key}")
-    private String accessKeyId;
+    private String awsAccessKey;
 
     // Injects the AWS secret key from the application properties file.
     @Value("${aws.secret.key}")
-    private String secretAccessKey;
+    private String awsSecretKey;
 
     // Injects the AWS region from the application properties file.
     @Value("${aws.region}")
@@ -40,7 +41,7 @@ public class S3Config {
     @Bean
     public S3Client getS3Client() {
         // Create AWS credentials using the access key and secret key.
-        AwsCredentials basicCredentials = AwsBasicCredentials.create(accessKeyId, secretAccessKey);
+        AwsCredentials basicCredentials = AwsBasicCredentials.create(awsAccessKey, awsSecretKey);
 
         // Build and return the S3Client with the specified region, endpoint, and credentials.
         return S3Client.builder()
@@ -60,7 +61,7 @@ public class S3Config {
     @Bean
     public S3AsyncClient getS3AsyncClient() {
         // Create AWS credentials using the access key and secret key.
-        AwsCredentials basicCredentials = AwsBasicCredentials.create(accessKeyId, secretAccessKey);
+        AwsCredentials basicCredentials = AwsBasicCredentials.create(awsAccessKey, awsSecretKey);
 
         // Build and return the S3AsyncClient with the specified region, endpoint, and credentials.
         return S3AsyncClient.builder()
@@ -68,5 +69,18 @@ public class S3Config {
                             .endpointOverride(URI.create("https://s3.us-east-1.amazonaws.com")) // Override the default endpoint.
                             .credentialsProvider(StaticCredentialsProvider.create(basicCredentials)) // Set the credentials provider.
                             .build();
+    }
+
+    /**
+     * Object to sign URL's S3
+     * @return
+     */
+    @Bean
+    public S3Presigner getS3Presigner() {
+        AwsCredentials basicCredentials = AwsBasicCredentials.create(awsAccessKey, awsSecretKey);
+        return S3Presigner.builder()
+                          .region(Region.of(region))
+                          .credentialsProvider(StaticCredentialsProvider.create(basicCredentials))
+                          .build();
     }
 }
