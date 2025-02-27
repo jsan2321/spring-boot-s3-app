@@ -14,42 +14,80 @@ import java.nio.file.Paths;
 import java.util.List;
 import java.util.Objects;
 
+/**
+ * REST controller for handling S3-related operations.
+ * This controller provides endpoints for creating buckets, checking bucket existence,
+ * listing buckets, uploading files, and downloading files.
+ */
 @RestController
-@RequestMapping("s3")
+@RequestMapping("s3") // Base path for all endpoints in this controller
 public class AppController {
 
+    // Injects the destination folder for temporary file storage from the application properties file.
     @Value("${spring.destination.folder}")
     private String destinationFolder;
 
+    // Autowires the S3 service to handle business logic.
     @Autowired
     private IS3Service s3Service;
 
+    /**
+     * Endpoint to create a new S3 bucket.
+     *
+     * @param bucketName The name of the bucket to create.
+     * @return A response indicating the result of the bucket creation.
+     */
     @PostMapping("/create")
     public ResponseEntity<String> createBucket(@RequestParam String bucketName) {
         return ResponseEntity.ok(s3Service.createBucket(bucketName));
     }
 
-    @GetMapping("/check/{buckerName}")
-    public ResponseEntity<String> cheackBucket(@RequestParam String bucketName) {
+    /**
+     * Endpoint to check if a bucket exists.
+     *
+     * @param bucketName The name of the bucket to check.
+     * @return A response indicating whether the bucket exists or not.
+     */
+    @GetMapping("/check/{bucketName}")
+    public ResponseEntity<String> checkBucket(@PathVariable String bucketName) {
         return ResponseEntity.ok(s3Service.checkIfBucketExists(bucketName));
     }
 
+    /**
+     * Endpoint to list all buckets in the S3 account.
+     *
+     * @return A response containing a list of bucket names.
+     */
     @GetMapping("/list")
     public ResponseEntity<List<String>> listBuckets() {
         return ResponseEntity.ok(s3Service.getAllBuckets());
     }
 
+    /**
+     * Endpoint to upload a file to an S3 bucket.
+     *
+     * @param bucketName The name of the bucket to upload the file to.
+     * @param key        The key (path) under which the file will be stored in the bucket.
+     * @param file       The file to upload.
+     * @return A response indicating the result of the file upload.
+     * @throws IOException If an error occurs while processing the file.
+     */
+    @PostMapping("/upload")
     public ResponseEntity<String> uploadFile(@RequestParam String bucketName, @RequestParam String key, @RequestPart MultipartFile file) throws IOException {
         try {
+            // Ensure the destination directory exists.
             Path staticDir = Paths.get(destinationFolder);
             if (!Files.exists(staticDir)) {
                 Files.createDirectories(staticDir);
             }
+            // Save the uploaded file to the local filesystem temporarily.
             Path filePath = staticDir.resolve(Objects.requireNonNull(file.getOriginalFilename()));
             Path finalPath = Files.write(filePath, file.getBytes());
             s3Service.uploadFile(bucketName, key, finalPath);
+            // Upload the file to the S3 bucket.
             Boolean result = s3Service.uploadFile(bucketName, key, finalPath);
 
+            // Delete the temporary file after upload.
             if(result) {
               Files.delete(finalPath);
               return ResponseEntity.ok("File uploaded successfully");
@@ -61,6 +99,14 @@ public class AppController {
         }
     }
 
+    /**
+     * Endpoint to download a file from an S3 bucket.
+     *
+     * @param bucketName The name of the bucket from which to download the file.
+     * @param key        The key (path) of the file in the bucket.
+     * @return A response indicating the result of the file download.
+     * @throws IOException If an error occurs while downloading the file.
+     */
     @PostMapping("/download")
     public ResponseEntity<String> downloadFile(@RequestParam String bucketName, @RequestParam String key) throws IOException {
         s3Service.downloadFile(bucketName, key);
